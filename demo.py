@@ -3,9 +3,10 @@ import pandas as pd
 import xgboost as xgb
 import os
 
-# 1. Page Config
+# 1. Page Configuration (Hospital Brand)
 st.set_page_config(page_title="St. Michael AI Hospital", page_icon="🏥", layout="wide")
 
+# Initialize Session State for Login
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
@@ -15,7 +16,8 @@ def login_screen():
     st.subheader("Dual Stroke & Heart Diagnostic System")
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        user = st.text_input("Staff ID")
+        st.info("Medical Staff Authentication Required")
+        user = st.text_input("Doctor ID")
         pw = st.text_input("Access Key", type="password")
         if st.button("Authorize Access", use_container_width=True):
             if user == "admin" and pw == "hospital123":
@@ -24,31 +26,39 @@ def login_screen():
             else:
                 st.error("Invalid Credentials")
 
-# --- MAIN APP ---
+# --- MAIN CLINICAL PORTAL ---
 def main_app():
     st.sidebar.title("👨‍⚕️ Staff Portal")
+    st.sidebar.info("System: Active\nEngine: XGBoost v2.0")
     if st.sidebar.button("Log Out"):
         st.session_state.logged_in = False
         st.rerun()
 
-    st.title("🧠❤️ Dual AI Diagnostic Portal")
+    st.title("🧠❤️ Clinical Risk Assessment Portal")
     
+    # LOAD AND TRAIN (800-Row Dataset)
     file_path = "stroke_prediction_dataset_800_rows.csv"
     if os.path.exists(file_path):
         data = pd.read_csv(file_path)
-        X_stroke = data.drop("stroke", axis=1)
-        y_stroke = data["stroke"]
-        model_stroke = xgb.XGBClassifier(n_estimators=100, max_depth=4, random_state=42)
-        model_stroke.fit(X_stroke, y_stroke)
         
-        X_heart = data.drop("heart_disease", axis=1)
-        y_heart = data["heart_disease"]
-        model_heart = xgb.XGBClassifier(n_estimators=100, max_depth=4, random_state=42)
-        model_heart.fit(X_heart, y_heart)
+        # Stroke Engine
+        X_s = data.drop("stroke", axis=1)
+        y_s = data["stroke"]
+        model_s = xgb.XGBClassifier(n_estimators=100, max_depth=4, random_state=42)
+        model_s.fit(X_s, y_s)
+        
+        # Heart Engine
+        X_h = data.drop("heart_disease", axis=1)
+        y_h = data["heart_disease"]
+        model_h = xgb.XGBClassifier(n_estimators=100, max_depth=4, random_state=42)
+        model_h.fit(X_h, y_h)
+        
+        st.success(f"✅ AI Engines Synchronized with {len(data)} clinical records.")
     else:
-        st.error("❌ Dataset missing! Ensure the CSV is on GitHub.")
+        st.error("❌ Dataset missing! Please upload the CSV to your GitHub.")
         st.stop()
 
+    # INPUT PANEL (3-Column Layout)
     st.markdown("### 📋 Patient Vitals Entry")
     c1, c2, c3 = st.columns(3)
     with c1:
@@ -64,48 +74,60 @@ def main_app():
         sys_bp = st.number_input("Systolic BP:", value=120.0)
         dia_bp = st.number_input("Diastolic BP:", value=80.0)
 
-    if st.button("RUN COMPREHENSIVE DIAGNOSTIC", use_container_width=True):
+    # ANALYSIS LOGIC
+    if st.button("RUN FULL CLINICAL DIAGNOSIS", use_container_width=True):
         st.divider()
         
-        # Calculations
-        p_data_stroke = pd.DataFrame([[age, gender, hyper, 0, glucose, bmi, smoke, chol, sys_bp, dia_bp, 1, 0]], columns=X_stroke.columns)
-        stroke_score = model_stroke.predict_proba(p_data_stroke)[0][1]
+        # Prepare Data
+        p_stroke = pd.DataFrame([[age, gender, hyper, 0, glucose, bmi, smoke, chol, sys_bp, dia_bp, 1, 0]], columns=X_s.columns)
+        s_score = float(model_s.predict_proba(p_stroke)[0][1])
         
-        p_data_heart = pd.DataFrame([[age, gender, hyper, glucose, bmi, smoke, chol, sys_bp, dia_bp, 1, 0, (1 if stroke_score > 0.5 else 0)]], columns=X_heart.columns)
-        heart_score = model_heart.predict_proba(p_data_heart)[0][1]
+        p_heart = pd.DataFrame([[age, gender, hyper, glucose, bmi, smoke, chol, sys_bp, dia_bp, 1, 0, (1 if s_score > 0.5 else 0)]], columns=X_h.columns)
+        h_score = float(model_h.predict_proba(p_heart)[0][1])
 
-        # Results Display with % over 100
+        # RESULTS (No percentages, just your words)
         res1, res2 = st.columns(2)
         
         with res1:
-            st.subheader("🧠 Stroke Risk Analysis")
-            stroke_pct = stroke_score * 100
-            st.metric("Risk Level", f"{stroke_pct:.1f}% / 100%")
-            st.progress(stroke_score) # Visual bar
-            if stroke_pct < 30: st.success("CATEGORY: LOW")
-            elif stroke_pct < 70: st.warning("CATEGORY: MODERATE")
-            else: st.error("CATEGORY: HIGH")
+            st.markdown("### 🧠 Stroke Assessment")
+            if s_score < 0.3:
+                st.success("### STATUS: Low Risk")
+                st.write("Patient clinical markers are currently stable.")
+            elif s_score < 0.7:
+                st.warning("### STATUS: Likely to have soon")
+                st.info("⚠️ **Action Required:** The person should go see a doctor for precautionary measures.")
+            else:
+                st.error("### STATUS: High Risk Detected")
+                st.write("Immediate medical intervention is highly recommended.")
 
         with res2:
-            st.subheader("❤️ Heart Disease Analysis")
-            heart_pct = heart_score * 100
-            st.metric("Risk Level", f"{heart_pct:.1f}% / 100%")
-            st.progress(heart_score) # Visual bar
-            if heart_pct < 30: st.success("CATEGORY: LOW")
-            elif heart_pct < 70: st.warning("CATEGORY: MODERATE")
-            else: st.error("CATEGORY: HIGH")
+            st.markdown("### ❤️ Heart Assessment")
+            if h_score < 0.3:
+                st.success("### STATUS: Low Risk")
+                st.write("Cardiovascular metrics are within normal range.")
+            elif h_score < 0.7:
+                st.warning("### STATUS: Likely to have soon")
+                st.info("⚠️ **Action Required:** The person should go see a doctor for precautionary measures.")
+            else:
+                st.error("### STATUS: High Risk Detected")
+                st.write("Critical cardiovascular abnormalities detected.")
 
-        # Visual Chart
+        # DATA ANALYTICS (The Chart)
         st.divider()
-        st.subheader("📊 Patient vs. Global Average")
-        avg_data = pd.DataFrame({
+        st.subheader("📊 Clinical Data Comparison")
+        avg_vals = [data['avg_glucose_level'].mean(), data['bmi'].mean(), data['cholesterol'].mean()]
+        chart_df = pd.DataFrame({
             'Metric': ['Glucose', 'BMI', 'Cholesterol'],
-            'Patient': [glucose, bmi, chol],
-            'Avg': [data['avg_glucose_level'].mean(), data['bmi'].mean(), data['cholesterol'].mean()]
+            'Current Patient': [glucose, bmi, chol],
+            'Global Average': avg_vals
         }).set_index('Metric')
-        st.bar_chart(avg_data)
+        st.bar_chart(chart_df)
 
-# --- ROUTING ---
+        # PRINT/DOWNLOAD SESSION
+        report = f"ST. MICHAEL CLINICAL REPORT\n----------------\nAge: {age}\nStroke Status: {'High' if s_score > 0.7 else 'Likely' if s_score > 0.3 else 'Low'}\nHeart Status: {'High' if h_score > 0.7 else 'Likely' if h_score > 0.3 else 'Low'}"
+        st.download_button("📄 Download/Print Report", report, "patient_report.txt", use_container_width=True)
+
+# --- RUNTIME ---
 if not st.session_state.logged_in:
     login_screen()
 else:
