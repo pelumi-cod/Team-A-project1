@@ -2,21 +2,21 @@ import streamlit as st
 import pandas as pd
 import xgboost as xgb
 import os
+from datetime import datetime
+import openpyxl 
 
-# 1. Page Configuration (Hospital Brand)
+# 1. Page Configuration
 st.set_page_config(page_title="St. Michael AI Hospital", page_icon="🏥", layout="wide")
 
-# Initialize Session State for Login
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
 # --- LOGIN SCREEN ---
 def login_screen():
     st.title("🏥 St. Michael AI Hospital")
-    st.subheader("Dual Stroke & Heart Diagnostic System")
+    st.subheader("Clinical Diagnostic & Record Management System")
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.info("Medical Staff Authentication Required")
         user = st.text_input("Doctor ID")
         pw = st.text_input("Access Key", type="password")
         if st.button("Authorize Access", use_container_width=True):
@@ -26,40 +26,46 @@ def login_screen():
             else:
                 st.error("Invalid Credentials")
 
+# --- DATABASE ENGINE ---
+def save_to_excel(new_data):
+    db_file = "patient_records.xlsx"
+    if not os.path.exists(db_file):
+        df = pd.DataFrame(columns=new_data.keys())
+        df.to_excel(db_file, index=False)
+    
+    existing_df = pd.read_excel(db_file)
+    updated_df = pd.concat([existing_df, pd.DataFrame([new_data])], ignore_index=True)
+    updated_df.to_excel(db_file, index=False)
+
 # --- MAIN CLINICAL PORTAL ---
 def main_app():
-    st.sidebar.title("👨‍⚕️ Staff Portal")
-    st.sidebar.info("System: Active\nEngine: XGBoost v2.0")
+    st.sidebar.title("👨‍⚕️ Doctor's Workspace")
     if st.sidebar.button("Log Out"):
         st.session_state.logged_in = False
         st.rerun()
 
-    st.title("🧠❤️ Clinical Risk Assessment Portal")
+    st.title("🧠❤️ Clinical Risk & Patient Record System")
     
-    # LOAD AND TRAIN (800-Row Dataset)
+    # Load Training Data
     file_path = "stroke_prediction_dataset_800_rows.csv"
     if os.path.exists(file_path):
         data = pd.read_csv(file_path)
-        
-        # Stroke Engine
         X_s = data.drop("stroke", axis=1)
         y_s = data["stroke"]
         model_s = xgb.XGBClassifier(n_estimators=100, max_depth=4, random_state=42)
         model_s.fit(X_s, y_s)
         
-        # Heart Engine
         X_h = data.drop("heart_disease", axis=1)
         y_h = data["heart_disease"]
         model_h = xgb.XGBClassifier(n_estimators=100, max_depth=4, random_state=42)
         model_h.fit(X_h, y_h)
-        
-        st.success(f"✅ AI Engines Synchronized with {len(data)} clinical records.")
     else:
-        st.error("❌ Dataset missing! Please upload the CSV to your GitHub.")
+        st.error("❌ Training Dataset missing!")
         st.stop()
 
-    # INPUT PANEL (3-Column Layout)
-    st.markdown("### 📋 Patient Vitals Entry")
+    # INPUT PANEL
+    st.markdown("### 📋 New Patient Entry")
+    patient_name = st.text_input("Patient Full Name / ID:") 
     c1, c2, c3 = st.columns(3)
     with c1:
         age = st.number_input("Age:", 1.0, 120.0, 50.0)
@@ -74,58 +80,61 @@ def main_app():
         sys_bp = st.number_input("Systolic BP:", value=120.0)
         dia_bp = st.number_input("Diastolic BP:", value=80.0)
 
-    # ANALYSIS LOGIC
-    if st.button("RUN FULL CLINICAL DIAGNOSIS", use_container_width=True):
-        st.divider()
-        
-        # Prepare Data
+    if st.button("RUN DIAGNOSIS & SAVE RECORD", use_container_width=True):
+        # AI Logic
         p_stroke = pd.DataFrame([[age, gender, hyper, 0, glucose, bmi, smoke, chol, sys_bp, dia_bp, 1, 0]], columns=X_s.columns)
-        s_score = float(model_s.predict_proba(p_stroke)[0][1])
+        s_score = float(model_stroke_prob := model_s.predict_proba(p_stroke)[0][1])
         
         p_heart = pd.DataFrame([[age, gender, hyper, glucose, bmi, smoke, chol, sys_bp, dia_bp, 1, 0, (1 if s_score > 0.5 else 0)]], columns=X_h.columns)
         h_score = float(model_h.predict_proba(p_heart)[0][1])
 
-        # RESULTS (No percentages, just your words)
-        res1, res2 = st.columns(2)
-        
-        with res1:
-            st.markdown("### 🧠 Stroke Assessment")
-            if s_score < 0.3:
-                st.success("### STATUS: Low Risk")
-                st.write("Patient clinical markers are currently stable.")
-            elif s_score < 0.7:
-                st.warning("### STATUS: Likely to have soon")
-                st.info("⚠️ **Action Required:** The person should go see a doctor for precautionary measures.")
-            else:
-                st.error("### STATUS: High Risk Detected")
-                st.write("Immediate medical intervention is highly recommended.")
+        # Status Assignment
+        s_status = "High Risk" if s_score > 0.7 else "Likely to have soon" if s_score > 0.3 else "Low Risk"
+        h_status = "High Risk" if h_score > 0.7 else "Likely to have soon" if h_score > 0.3 else "Low Risk"
 
-        with res2:
-            st.markdown("### ❤️ Heart Assessment")
-            if h_score < 0.3:
-                st.success("### STATUS: Low Risk")
-                st.write("Cardiovascular metrics are within normal range.")
-            elif h_score < 0.7:
-                st.warning("### STATUS: Likely to have soon")
-                st.info("⚠️ **Action Required:** The person should go see a doctor for precautionary measures.")
-            else:
-                st.error("### STATUS: High Risk Detected")
-                st.write("Critical cardiovascular abnormalities detected.")
-
-        # DATA ANALYTICS (The Chart)
+        # DISPLAY RESULTS
         st.divider()
-        st.subheader("📊 Clinical Data Comparison")
-        avg_vals = [data['avg_glucose_level'].mean(), data['bmi'].mean(), data['cholesterol'].mean()]
-        chart_df = pd.DataFrame({
-            'Metric': ['Glucose', 'BMI', 'Cholesterol'],
-            'Current Patient': [glucose, bmi, chol],
-            'Global Average': avg_vals
-        }).set_index('Metric')
-        st.bar_chart(chart_df)
+        res1, res2 = st.columns(2)
+        with res1:
+            st.markdown(f"### 🧠 Stroke: {s_status}")
+            if "Likely" in s_status: st.info("⚠️ Recommendation: The person should go see a doctor for precautionary measures.")
+        with res2:
+            st.markdown(f"### ❤️ Heart: {h_status}")
+            if "Likely" in h_status: st.info("⚠️ Recommendation: The person should go see a doctor for precautionary measures.")
 
-        # PRINT/DOWNLOAD SESSION
-        report = f"ST. MICHAEL CLINICAL REPORT\n----------------\nAge: {age}\nStroke Status: {'High' if s_score > 0.7 else 'Likely' if s_score > 0.3 else 'Low'}\nHeart Status: {'High' if h_score > 0.7 else 'Likely' if h_score > 0.3 else 'Low'}"
-        st.download_button("📄 Download/Print Report", report, "patient_report.txt", use_container_width=True)
+        # --- SAVE TO EXCEL ---
+        record = {
+            "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "Patient Name": patient_name if patient_name else "Unknown",
+            "Age": age,
+            "Stroke Assessment": s_status,
+            "Heart Assessment": h_status,
+            "Glucose": glucose,
+            "BMI": bmi
+        }
+        save_to_excel(record)
+        st.success(f"💾 File update: Record for '{patient_name}' has been securely archived.")
+
+    # --- THE ARCHIVE SECTION (Visible on Page) ---
+    st.divider()
+    st.subheader("📂 Hospital Patient Archives")
+    
+    if os.path.exists("patient_records.xlsx"):
+        history_df = pd.read_excel("patient_records.xlsx")
+        
+        # Display the table on the page
+        st.dataframe(history_df.sort_index(ascending=False), use_container_width=True)
+        
+        # Download button for necessity
+        with open("patient_records.xlsx", "rb") as f:
+            st.download_button(
+                label="📥 Download Full Database (Excel)",
+                data=f,
+                file_name=f"Hospital_Database_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+    else:
+        st.info("No records found. The database will appear here once the first diagnosis is saved.")
 
 # --- RUNTIME ---
 if not st.session_state.logged_in:
