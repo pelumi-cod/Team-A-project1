@@ -6,14 +6,14 @@ from datetime import datetime
 import openpyxl 
 
 # 1. Page Configuration
-st.set_page_config(page_title="St. Michael AI Hospital", page_icon="🏥", layout="wide")
+st.set_page_config(page_title="TEAM A HOSPITAL", page_icon="🏥", layout="wide")
 
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
 # --- LOGIN SCREEN ---
 def login_screen():
-    st.title("🏥 St. Michael AI Hospital")
+    st.title("🏥 TEAM A HOSPITAL")
     st.subheader("Clinical Diagnostic & Record Management System")
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
@@ -141,3 +141,4 @@ if not st.session_state.logged_in:
     login_screen()
 else:
     main_app()
+
