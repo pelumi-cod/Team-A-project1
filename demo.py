@@ -11,7 +11,7 @@ if 'logged_in' not in st.session_state:
 
 # --- LOGIN PAGE FUNCTION ---
 def login_page():
-    st.title("🏥 St. Michael AI Hospital")
+    st.title("🏥 TEAM A Hospital")
     st.subheader("Clinical Decision Support System")
     
     col1, col2, col3 = st.columns([1,2,1])
@@ -34,7 +34,7 @@ def main_app():
         st.session_state.logged_in = False
         st.rerun()
     
-    st.title("🧠 Stroke Risk Diagnostic Engine")
+    st.title("Heart and Stroke Risk Diagnostic Engine")
     
     # Internal Demo Dataset
     data = pd.DataFrame({
@@ -82,3 +82,4 @@ if __name__ == "__main__":
         login_page()
     else:
         main_app()
+
