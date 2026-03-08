@@ -3,7 +3,7 @@ import pandas as pd
 from sklearn.ensemble import GradientBoostingClassifier
 
 # 1. Page Configuration
-st.set_page_config(page_title="St. Michael AI Hospital", page_icon="🏥", layout="wide")
+st.set_page_config(page_title="TEAM A Hospital", page_icon="🏥", layout="wide")
 
 # 2. Initialize Session State for Login
 if 'logged_in' not in st.session_state:
@@ -82,4 +82,5 @@ if __name__ == "__main__":
         login_page()
     else:
         main_app()
+
 
