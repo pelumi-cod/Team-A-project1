@@ -1,10 +1,10 @@
 import streamlit as st
 import pandas as pd
-from xgboost import XGBClassifier
+import xgboost as xgb
 import os
 
 # 1. Page Config
-st.set_page_config(page_title="St. Michael Cardio-Portal", page_icon="🏥", layout="wide")
+st.set_page_config(page_title="St. Michael AI Hospital", page_icon="🏥", layout="wide")
 
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
@@ -12,7 +12,7 @@ if 'logged_in' not in st.session_state:
 # --- LOGIN SCREEN ---
 def login_screen():
     st.title("🏥 St. Michael AI Hospital")
-    st.subheader("Dual Stroke & Heart Disease Diagnostic Portal")
+    st.subheader("Dual Stroke & Heart Diagnostic System")
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         user = st.text_input("Staff ID")
@@ -31,31 +31,25 @@ def main_app():
         st.session_state.logged_in = False
         st.rerun()
 
-    st.title("🧠❤️ Dual AI Diagnostic Engine")
+    st.title("🧠❤️ Dual AI Diagnostic Portal")
     
     file_path = "stroke_prediction_dataset_800_rows.csv"
     if os.path.exists(file_path):
         data = pd.read_csv(file_path)
-        
-        # MODEL 1: STROKE DETECTION
         X_stroke = data.drop("stroke", axis=1)
         y_stroke = data["stroke"]
-        model_stroke = XGBClassifier(n_estimators=100, max_depth=4, random_state=42)
+        model_stroke = xgb.XGBClassifier(n_estimators=100, max_depth=4, random_state=42)
         model_stroke.fit(X_stroke, y_stroke)
         
-        # MODEL 2: HEART DISEASE DETECTION
         X_heart = data.drop("heart_disease", axis=1)
         y_heart = data["heart_disease"]
-        model_heart = XGBClassifier(n_estimators=100, max_depth=4, random_state=42)
+        model_heart = xgb.XGBClassifier(n_estimators=100, max_depth=4, random_state=42)
         model_heart.fit(X_heart, y_heart)
-        
-        st.success(f"✅ Dual-Engine Synchronized: {len(data)} clinical records processed.")
     else:
-        st.error("❌ Dataset missing! Upload 'stroke_prediction_dataset_800_rows.csv' to GitHub.")
+        st.error("❌ Dataset missing! Ensure the CSV is on GitHub.")
         st.stop()
 
-    # INPUT FIELDS
-    st.markdown("### Patient Vitals Entry")
+    st.markdown("### 📋 Patient Vitals Entry")
     c1, c2, c3 = st.columns(3)
     with c1:
         age = st.number_input("Age:", 1.0, 120.0, 50.0)
@@ -70,43 +64,48 @@ def main_app():
         sys_bp = st.number_input("Systolic BP:", value=120.0)
         dia_bp = st.number_input("Diastolic BP:", value=80.0)
 
-    # Missing indicators for specific predictions
-    act = 1 # Average Activity
-    alc = 0 # No Alcohol
-    heart_disease_status = 0 # Placeholder for Stroke model
-
-    if st.button("RUN DUAL DIAGNOSTIC SCAN", use_container_width=True):
+    if st.button("RUN COMPREHENSIVE DIAGNOSTIC", use_container_width=True):
         st.divider()
-        col_left, col_right = st.columns(2)
         
-        # 1️⃣ STROKE PREDICTION
-        p_stroke = pd.DataFrame([[age, gender, hyper, heart_disease_status, glucose, bmi, smoke, chol, sys_bp, dia_bp, act, alc]], columns=X_stroke.columns)
-        stroke_score = model_stroke.predict_proba(p_stroke)[0][1]
+        # Calculations
+        p_data_stroke = pd.DataFrame([[age, gender, hyper, 0, glucose, bmi, smoke, chol, sys_bp, dia_bp, 1, 0]], columns=X_stroke.columns)
+        stroke_score = model_stroke.predict_proba(p_data_stroke)[0][1]
         
-        with col_left:
-            st.subheader("🧠 Stroke Assessment")
-            if stroke_score < 0.30: st.success(f"LOW RISK ({stroke_score:.1%})")
-            elif stroke_score < 0.70: st.warning(f"MODERATE RISK ({stroke_score:.1%})")
-            else: st.error(f"HIGH RISK ({stroke_score:.1%})")
+        p_data_heart = pd.DataFrame([[age, gender, hyper, glucose, bmi, smoke, chol, sys_bp, dia_bp, 1, 0, (1 if stroke_score > 0.5 else 0)]], columns=X_heart.columns)
+        heart_score = model_heart.predict_proba(p_data_heart)[0][1]
 
-        # 2️⃣ HEART DISEASE PREDICTION
-        # Note: We use the 'stroke' prediction as an input for heart disease if needed, or just standard vitals
-        stroke_status = 1 if stroke_score > 0.5 else 0
-        p_heart = pd.DataFrame([[age, gender, hyper, glucose, bmi, smoke, chol, sys_bp, dia_bp, act, alc, stroke_status]], columns=X_heart.columns)
-        heart_score = model_heart.predict_proba(p_heart)[0][1]
+        # Results Display with % over 100
+        res1, res2 = st.columns(2)
         
-        with col_right:
-            st.subheader("❤️ Heart Assessment")
-            if heart_score < 0.30: st.success(f"LOW RISK ({heart_score:.1%})")
-            elif heart_score < 0.70: st.warning(f"MODERATE RISK ({heart_score:.1%})")
-            else: st.error(f"HIGH RISK ({heart_score:.1%})")
+        with res1:
+            st.subheader("🧠 Stroke Risk Analysis")
+            stroke_pct = stroke_score * 100
+            st.metric("Risk Level", f"{stroke_pct:.1f}% / 100%")
+            st.progress(stroke_score) # Visual bar
+            if stroke_pct < 30: st.success("CATEGORY: LOW")
+            elif stroke_pct < 70: st.warning("CATEGORY: MODERATE")
+            else: st.error("CATEGORY: HIGH")
 
-        # GENERATE CONSOLIDATED REPORT
-        report = f"ST. MICHAEL DUAL CLINICAL REPORT\n" + "-"*30 + \
-                 f"\nStroke Risk: {stroke_score:.1%}\nHeart Risk: {heart_score:.1%}"
-        st.download_button("📄 Download Consolidated Report", report, "clinical_report.txt")
+        with res2:
+            st.subheader("❤️ Heart Disease Analysis")
+            heart_pct = heart_score * 100
+            st.metric("Risk Level", f"{heart_pct:.1f}% / 100%")
+            st.progress(heart_score) # Visual bar
+            if heart_pct < 30: st.success("CATEGORY: LOW")
+            elif heart_pct < 70: st.warning("CATEGORY: MODERATE")
+            else: st.error("CATEGORY: HIGH")
 
-# --- NAVIGATION ---
+        # Visual Chart
+        st.divider()
+        st.subheader("📊 Patient vs. Global Average")
+        avg_data = pd.DataFrame({
+            'Metric': ['Glucose', 'BMI', 'Cholesterol'],
+            'Patient': [glucose, bmi, chol],
+            'Avg': [data['avg_glucose_level'].mean(), data['bmi'].mean(), data['cholesterol'].mean()]
+        }).set_index('Metric')
+        st.bar_chart(avg_data)
+
+# --- ROUTING ---
 if not st.session_state.logged_in:
     login_screen()
 else:
