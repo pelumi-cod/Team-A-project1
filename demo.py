@@ -3,102 +3,110 @@ import pandas as pd
 from xgboost import XGBClassifier
 import os
 
-# --- 1. Page Configuration ---
-st.set_page_config(page_title="St. Michael AI Hospital", page_icon="🏥", layout="wide")
+# 1. Page Config
+st.set_page_config(page_title="St. Michael Cardio-Portal", page_icon="🏥", layout="wide")
 
-# Initialize Login State
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
-# --- 2. THE LOGIN SCREEN ---
+# --- LOGIN SCREEN ---
 def login_screen():
     st.title("🏥 St. Michael AI Hospital")
-    st.markdown("### Clinical Decision Support System")
-    
+    st.subheader("Dual Stroke & Heart Disease Diagnostic Portal")
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.info("Authorized Medical Personnel Only")
-        username = st.text_input("Staff ID")
-        password = st.text_input("Access Key", type="password")
-        
+        user = st.text_input("Staff ID")
+        pw = st.text_input("Access Key", type="password")
         if st.button("Authorize Access", use_container_width=True):
-            # You can change these credentials as needed
-            if username == "admin" and password == "hospital123":
+            if user == "admin" and pw == "hospital123":
                 st.session_state.logged_in = True
                 st.rerun()
             else:
-                st.error("Invalid Credentials. Please check your Staff ID or Key.")
+                st.error("Invalid Credentials")
 
-# --- 3. THE MAIN DIAGNOSTIC APP ---
+# --- MAIN APP ---
 def main_app():
-    # Sidebar for Logout and User Info
-    st.sidebar.title("👨‍⚕️ Clinical Portal")
-    st.sidebar.write("User: Dr. Administrator")
+    st.sidebar.title("👨‍⚕️ Staff Portal")
     if st.sidebar.button("Log Out"):
         st.session_state.logged_in = False
         st.rerun()
 
-    st.title("🧠 Stroke Risk Engine (XGBoost)")
+    st.title("🧠❤️ Dual AI Diagnostic Engine")
     
-    # LOAD DATASET
     file_path = "stroke_prediction_dataset_800_rows.csv"
     if os.path.exists(file_path):
         data = pd.read_csv(file_path)
-        X = data.drop("stroke", axis=1)
-        y = data["stroke"]
         
-        # Train Model with your specific settings
-        model = XGBClassifier(n_estimators=150, learning_rate=0.1, max_depth=4, random_state=42)
-        model.fit(X, y)
-        st.success(f"✅ AI Engine Synchronized with {len(data)} clinical records.")
+        # MODEL 1: STROKE DETECTION
+        X_stroke = data.drop("stroke", axis=1)
+        y_stroke = data["stroke"]
+        model_stroke = XGBClassifier(n_estimators=100, max_depth=4, random_state=42)
+        model_stroke.fit(X_stroke, y_stroke)
+        
+        # MODEL 2: HEART DISEASE DETECTION
+        X_heart = data.drop("heart_disease", axis=1)
+        y_heart = data["heart_disease"]
+        model_heart = XGBClassifier(n_estimators=100, max_depth=4, random_state=42)
+        model_heart.fit(X_heart, y_heart)
+        
+        st.success(f"✅ Dual-Engine Synchronized: {len(data)} clinical records processed.")
     else:
-        st.error(f"❌ Dataset not found! Please ensure '{file_path}' is in your GitHub.")
+        st.error("❌ Dataset missing! Upload 'stroke_prediction_dataset_800_rows.csv' to GitHub.")
         st.stop()
 
-    # GUI INPUTS
-    st.markdown("---")
-    st.subheader("Patient Clinical Profile")
+    # INPUT FIELDS
+    st.markdown("### Patient Vitals Entry")
     c1, c2, c3 = st.columns(3)
-
     with c1:
         age = st.number_input("Age:", 1.0, 120.0, 50.0)
         gender = st.selectbox("Gender:", [0, 1], format_func=lambda x: "Female" if x==0 else "Male")
         hyper = st.selectbox("Hypertension:", [0, 1], format_func=lambda x: "No" if x==0 else "Yes")
-        heart = st.selectbox("Heart Disease:", [0, 1], format_func=lambda x: "No" if x==0 else "Yes")
-
     with c2:
-        glucose = st.number_input("Glucose Level:", value=100.0)
-        bmi = st.number_input("BMI:", value=25.0)
-        smoking = st.selectbox("Smoking Status:", [0, 1, 2], format_func=lambda x: ["Never", "Former", "Smokes"][x])
-        chol = st.number_input("Cholesterol Level:", value=200.0)
-
+        glucose = st.number_input("Avg Glucose Level:", value=110.0)
+        bmi = st.number_input("BMI:", value=28.0)
+        smoke = st.selectbox("Smoking Status:", [0, 1, 2], format_func=lambda x: ["Never", "Former", "Smokes"][x])
     with c3:
+        chol = st.number_input("Cholesterol:", value=200.0)
         sys_bp = st.number_input("Systolic BP:", value=120.0)
         dia_bp = st.number_input("Diastolic BP:", value=80.0)
-        act = st.selectbox("Physical Activity (0-2):", [0, 1, 2])
-        alc = st.selectbox("Alcohol Intake:", [0, 1], format_func=lambda x: "No" if x==0 else "Yes")
 
-    # 3-TIER PREDICTION LOGIC
-    if st.button("RUN FULL DIAGNOSIS", use_container_width=True):
-        patient_data = pd.DataFrame([[
-            age, gender, hyper, heart, glucose, bmi, smoking, chol, sys_bp, dia_bp, act, alc
-        ]], columns=X.columns)
+    # Missing indicators for specific predictions
+    act = 1 # Average Activity
+    alc = 0 # No Alcohol
+    heart_disease_status = 0 # Placeholder for Stroke model
 
-        risk_score = model.predict_proba(patient_data)[0][1]
-        
+    if st.button("RUN DUAL DIAGNOSTIC SCAN", use_container_width=True):
         st.divider()
-        if risk_score < 0.30:
-            st.success(f"### Result: No Stroke detected.\n**Risk Score: {risk_score:.2%}**")
-        elif 0.30 <= risk_score < 0.70:
-            st.warning(f"### Result: Potential Stroke Risk.\n**Risk Score: {risk_score:.2%}**\n\n*Advice: Schedule follow-up for prevention.*")
-        else:
-            st.error(f"### Result: High/Immediate Stroke Risk!\n**Risk Score: {risk_score:.2%}**")
+        col_left, col_right = st.columns(2)
+        
+        # 1️⃣ STROKE PREDICTION
+        p_stroke = pd.DataFrame([[age, gender, hyper, heart_disease_status, glucose, bmi, smoke, chol, sys_bp, dia_bp, act, alc]], columns=X_stroke.columns)
+        stroke_score = model_stroke.predict_proba(p_stroke)[0][1]
+        
+        with col_left:
+            st.subheader("🧠 Stroke Assessment")
+            if stroke_score < 0.30: st.success(f"LOW RISK ({stroke_score:.1%})")
+            elif stroke_score < 0.70: st.warning(f"MODERATE RISK ({stroke_score:.1%})")
+            else: st.error(f"HIGH RISK ({stroke_score:.1%})")
 
-        # Download Option
-        report = f"ST. MICHAEL CLINICAL REPORT\nPatient Age: {age}\nRisk Score: {risk_score:.2%}"
-        st.download_button("📄 Print Summary", report, "stroke_report.txt")
+        # 2️⃣ HEART DISEASE PREDICTION
+        # Note: We use the 'stroke' prediction as an input for heart disease if needed, or just standard vitals
+        stroke_status = 1 if stroke_score > 0.5 else 0
+        p_heart = pd.DataFrame([[age, gender, hyper, glucose, bmi, smoke, chol, sys_bp, dia_bp, act, alc, stroke_status]], columns=X_heart.columns)
+        heart_score = model_heart.predict_proba(p_heart)[0][1]
+        
+        with col_right:
+            st.subheader("❤️ Heart Assessment")
+            if heart_score < 0.30: st.success(f"LOW RISK ({heart_score:.1%})")
+            elif heart_score < 0.70: st.warning(f"MODERATE RISK ({heart_score:.1%})")
+            else: st.error(f"HIGH RISK ({heart_score:.1%})")
 
-# --- 4. NAVIGATION LOGIC ---
+        # GENERATE CONSOLIDATED REPORT
+        report = f"ST. MICHAEL DUAL CLINICAL REPORT\n" + "-"*30 + \
+                 f"\nStroke Risk: {stroke_score:.1%}\nHeart Risk: {heart_score:.1%}"
+        st.download_button("📄 Download Consolidated Report", report, "clinical_report.txt")
+
+# --- NAVIGATION ---
 if not st.session_state.logged_in:
     login_screen()
 else:
