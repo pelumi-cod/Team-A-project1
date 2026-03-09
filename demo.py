@@ -39,14 +39,14 @@ def save_to_hospital_database(record):
     updated_df.to_excel(db_file, index=False)
 
 # --- 3. UI CONFIG ---
-st.set_page_config(page_title="St. Michael AI Hospital", page_icon="🏥", layout="wide")
+st.set_page_config(page_title="TEAM A HOSPITAL", page_icon="🏥", layout="wide")
 
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
 # --- 4. LOGIN ---
 def login():
-    st.title("🏥 St. Michael AI Hospital")
+    st.title("TEAM A HOSPITAL")
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         u = st.text_input("Staff ID")
@@ -65,7 +65,7 @@ def main():
         st.session_state.logged_in = False
         st.rerun()
 
-    st.title("🧠❤️ Clinical Risk & Record Management")
+    st.title(" Clinical Risk & Record Management")
 
     data = load_and_clean_data("stroke_prediction_dataset_800_rows.csv")
     if data is not None:
@@ -112,9 +112,9 @@ def main():
         st.divider()
         r1, r2 = st.columns(2)
         with r1:
-            st.markdown(f"### 🧠 Stroke: {s_status}")
+            st.markdown(f"###  Stroke: {s_status}")
         with r2:
-            st.markdown(f"### ❤️ Heart: {h_status}")
+            st.markdown(f"###  Heart: {h_status}")
 
         # SAVE RECORD
         record = {
@@ -157,4 +157,5 @@ if not st.session_state.logged_in:
     login()
 else:
     main()
+
 
