@@ -108,7 +108,7 @@ def main():
         s_status = get_risk_label(s_prob)
         h_status = get_risk_label(h_prob)
 
-        # Show Results on Page
+        # Show Results
         st.divider()
         r1, r2 = st.columns(2)
         with r1:
@@ -118,9 +118,7 @@ def main():
             st.markdown(f"### ❤️ Heart: {h_status}")
             if h_prob > 0.3: st.info("Advice: Go see a doctor for precautionary measures.")
 
-        # --- THE FIX: RECORDING VALUES TO THE TABLE ---
-        # We ensure the names on the left match your table headers
-        # and the values on the right match your input variables.
+        # ARCHIVE RECORD
         record = {
             "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M"),
             "Patient Name": p_name if p_name else "Guest Patient",
@@ -130,19 +128,22 @@ def main():
             "Glucose": glucose,
             "BMI": bmi
         }
-        
         save_to_hospital_database(record)
-        st.success(f"💾 Record for {p_name} saved to the Hospital Archives.")
+        st.success("💾 Record Captured.")
 
-    # ARCHIVE VIEW (Visible Table)
+        # --- RESTORED GRAPH UX ---
+        st.subheader("📊 Clinical Risk Factor Analysis")
+        imp = pd.Series(model_s.feature_importances_, index=data.drop("stroke", axis=1).columns).sort_values(ascending=False).head(5)
+        fig, ax = plt.subplots(figsize=(10, 4))
+        sns.barplot(x=imp.values, y=imp.index, palette="viridis", ax=ax)
+        st.pyplot(fig)
+
+    # ARCHIVE VIEW
     st.divider()
-    st.subheader("📂 Hospital Patient Archives")
+    st.subheader("📂 Hospital Archives")
     if os.path.exists("patient_records.xlsx"):
         history = pd.read_excel("patient_records.xlsx")
-        # Displaying the records, latest first
         st.dataframe(history.iloc[::-1], use_container_width=True)
-    else:
-        st.write("No records available yet.")
 
 # Routing
 if not st.session_state.logged_in:
