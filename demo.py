@@ -93,7 +93,7 @@ def main():
         dia_bp = st.number_input("Diastolic:", value=80.0)
 
     if st.button("RUN SCAN & ARCHIVE"):
-        # Prediction Logic
+        # Logic
         in_s = pd.DataFrame([[age, gender, hyper, 0, glucose, bmi, smoke, chol, sys_bp, dia_bp, 1, 0]], columns=data.drop("stroke", axis=1).columns)
         s_prob = float(model_s.predict_proba(in_s)[0][1])
         
@@ -113,40 +113,48 @@ def main():
         r1, r2 = st.columns(2)
         with r1:
             st.markdown(f"### 🧠 Stroke: {s_status}")
-            if s_prob > 0.3: st.info("Advice: Go see a doctor for precautionary measures.")
         with r2:
             st.markdown(f"### ❤️ Heart: {h_status}")
-            if h_prob > 0.3: st.info("Advice: Go see a doctor for precautionary measures.")
 
-        # ARCHIVE RECORD
+        # SAVE RECORD
         record = {
             "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M"),
             "Patient Name": p_name if p_name else "Guest Patient",
             "Age": age,
-            "Heart Assessment": h_status,
             "Stroke Assessment": s_status,
+            "Heart Assessment": h_status,
             "Glucose": glucose,
             "BMI": bmi
         }
         save_to_hospital_database(record)
-        st.success("💾 Record Captured.")
-
-        # --- RESTORED GRAPH UX ---
-        st.subheader("📊 Clinical Risk Factor Analysis")
+        
+        # DISPLAY GRAPH
+        st.subheader("📊 Primary Risk Factors")
         imp = pd.Series(model_s.feature_importances_, index=data.drop("stroke", axis=1).columns).sort_values(ascending=False).head(5)
         fig, ax = plt.subplots(figsize=(10, 4))
         sns.barplot(x=imp.values, y=imp.index, palette="viridis", ax=ax)
         st.pyplot(fig)
 
-    # ARCHIVE VIEW
+    # --- THE FIXED TABLE VIEW ---
     st.divider()
     st.subheader("📂 Hospital Archives")
     if os.path.exists("patient_records.xlsx"):
         history = pd.read_excel("patient_records.xlsx")
-        st.dataframe(history.iloc[::-1], use_container_width=True)
+        
+        # This line forces the table to ONLY show these columns and hides the mess
+        display_cols = ["Timestamp", "Patient Name", "Age", "Stroke Assessment", "Heart Assessment", "Glucose", "BMI"]
+        
+        # We check which of our desired columns actually exist in the file
+        available_cols = [c for c in display_cols if c in history.columns]
+        
+        # Show only the clean version
+        st.dataframe(history[available_cols].iloc[::-1], use_container_width=True)
+    else:
+        st.info("No records to display.")
 
 # Routing
 if not st.session_state.logged_in:
     login()
 else:
     main()
+
