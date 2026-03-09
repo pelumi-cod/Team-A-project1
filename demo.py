@@ -8,7 +8,7 @@ from datetime import datetime
 import openpyxl 
 
 # --- 1. Page Configuration & Style ---
-st.set_page_config(page_title="St. Michael AI Hospital", page_icon="🏥", layout="wide")
+st.set_page_config(page_title="TEAM A HOSPITAL", page_icon="🏥", layout="wide")
 
 # Custom CSS for a cleaner UX
 st.markdown("""
@@ -33,8 +33,8 @@ def save_to_excel(new_data):
 
 # --- 3. Login Screen ---
 def login_screen():
-    st.title("🏥 St. Michael AI Hospital")
-    st.subheader("Dual Stroke & Heart Diagnostic System (Sensitive Mode)")
+    st.title("🏥 TEAM A HOSPITAL")
+    st.subheader("Dual Stroke & Heart Diagnostic System ")
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         user = st.text_input("Doctor ID")
@@ -167,3 +167,4 @@ if not st.session_state.logged_in:
     login_screen()
 else:
     main_app()
+
