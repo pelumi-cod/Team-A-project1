@@ -7,7 +7,7 @@ import seaborn as sns
 from datetime import datetime
 import openpyxl 
 
-# --- 1. PERFORMANCE CACHING (The Speed Fix) ---
+# --- 1. PERFORMANCE CACHING ---
 @st.cache_data
 def load_and_clean_data(path):
     if os.path.exists(path):
@@ -16,13 +16,11 @@ def load_and_clean_data(path):
 
 @st.cache_resource
 def train_clinical_models(data):
-    # Stroke Model
     X_s = data.drop("stroke", axis=1)
     y_s = data["stroke"]
     m_s = xgb.XGBClassifier(n_estimators=150, max_depth=4, learning_rate=0.1, random_state=42)
     m_s.fit(X_s, y_s)
     
-    # Heart Model
     X_h = data.drop("heart_disease", axis=1)
     y_h = data["heart_disease"]
     m_h = xgb.XGBClassifier(n_estimators=150, max_depth=4, learning_rate=0.1, random_state=42)
@@ -69,7 +67,6 @@ def main():
 
     st.title("🧠❤️ Clinical Risk & Record Management")
 
-    # Load Data & Models with Spinner
     data = load_and_clean_data("stroke_prediction_dataset_800_rows.csv")
     if data is not None:
         with st.spinner('Optimizing AI Engines...'):
@@ -87,8 +84,8 @@ def main():
         gender = st.selectbox("Gender:", [0, 1], format_func=lambda x: "Female" if x==0 else "Male")
         hyper = st.selectbox("Hypertension:", [0, 1], format_func=lambda x: "No" if x==0 else "Yes")
     with c2:
-        glucose = st.number_input("Glucose:", value=100.0)
-        bmi = st.number_input("BMI:", value=25.0)
+        glucose = st.number_input("Glucose:", value=110.0)
+        bmi = st.number_input("BMI:", value=28.0)
         smoke = st.selectbox("Smoking:", [0, 1, 2], format_func=lambda x: ["Never", "Former", "Smokes"][x])
     with c3:
         chol = st.number_input("Cholesterol:", value=200.0)
@@ -96,50 +93,56 @@ def main():
         dia_bp = st.number_input("Diastolic:", value=80.0)
 
     if st.button("RUN SCAN & ARCHIVE"):
-        # Logic
+        # Prediction Logic
         in_s = pd.DataFrame([[age, gender, hyper, 0, glucose, bmi, smoke, chol, sys_bp, dia_bp, 1, 0]], columns=data.drop("stroke", axis=1).columns)
         s_prob = float(model_s.predict_proba(in_s)[0][1])
         
         in_h = pd.DataFrame([[age, gender, hyper, glucose, bmi, smoke, chol, sys_bp, dia_bp, 1, 0, (1 if s_prob > 0.5 else 0)]], columns=data.drop("heart_disease", axis=1).columns)
         h_prob = float(model_h.predict_proba(in_h)[0][1])
 
-        # Sensitive Threshold (0.30)
-        def get_risk(p):
-            if p > 0.7: return "High Risk Detected", "error"
-            if p > 0.3: return "Likely to have soon", "warning"
-            return "Low Risk", "success"
+        def get_risk_label(p):
+            if p > 0.7: return "High Risk Detected"
+            if p > 0.3: return "Likely to have soon"
+            return "Low Risk"
 
-        s_stat, s_type = get_risk(s_prob)
-        h_stat, h_type = get_risk(h_prob)
+        s_status = get_risk_label(s_prob)
+        h_status = get_risk_label(h_prob)
 
-        # Results
+        # Show Results on Page
         st.divider()
         r1, r2 = st.columns(2)
         with r1:
-            st.markdown(f"### 🧠 Stroke: {s_stat}")
-            if s_prob > 0.3: st.info("The person should go see a doctor for precautionary measures.")
+            st.markdown(f"### 🧠 Stroke: {s_status}")
+            if s_prob > 0.3: st.info("Advice: Go see a doctor for precautionary measures.")
         with r2:
-            st.markdown(f"### ❤️ Heart: {h_stat}")
-            if h_prob > 0.3: st.info("The person should go see a doctor for precautionary measures.")
+            st.markdown(f"### ❤️ Heart: {h_status}")
+            if h_prob > 0.3: st.info("Advice: Go see a doctor for precautionary measures.")
 
-        # ARCHIVE RECORD
+        # --- THE FIX: RECORDING VALUES TO THE TABLE ---
+        # We ensure the names on the left match your table headers
+        # and the values on the right match your input variables.
         record = {
             "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M"),
-            "Patient": p_name if p_name else "Anonymous",
-            "Stroke_Status": s_stat,
-            "Heart_Status": h_stat,
+            "Patient Name": p_name if p_name else "Guest Patient",
+            "Age": age,
+            "Heart Assessment": h_status,
+            "Stroke Assessment": s_status,
             "Glucose": glucose,
             "BMI": bmi
         }
+        
         save_to_hospital_database(record)
-        st.success("💾 Record captured and archived in the terminal database.")
+        st.success(f"💾 Record for {p_name} saved to the Hospital Archives.")
 
-    # ARCHIVE VIEW
+    # ARCHIVE VIEW (Visible Table)
     st.divider()
-    st.subheader("📂 Hospital Archives")
+    st.subheader("📂 Hospital Patient Archives")
     if os.path.exists("patient_records.xlsx"):
         history = pd.read_excel("patient_records.xlsx")
+        # Displaying the records, latest first
         st.dataframe(history.iloc[::-1], use_container_width=True)
+    else:
+        st.write("No records available yet.")
 
 # Routing
 if not st.session_state.logged_in:
