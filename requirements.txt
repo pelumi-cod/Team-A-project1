@@ -3,3 +3,7 @@ pandas
 xgboost
 scikit-learn
 openpyxl
+matplotlib
+seaborn
+
+
